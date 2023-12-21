@@ -189,3 +189,111 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, error?.message || "Invalid refresh token")
     }
 })
+
+export const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPasssword, newPasssword } = req.body;
+
+    if (oldPasssword === newPasssword)
+        throw new ApiError(401, 'your old password and new password is same')
+
+    const user = await User.findById(req.user?._id)
+
+    const isPasswordCorrect = await User.isPasswordCorrect(oldPasssword)
+
+    if (isPasswordCorrect)
+        throw new ApiError(400, 'invalied password')
+
+    user.password = newPasssword;
+    user.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, 'Password Changed Successfully'))
+
+})
+
+export const getCurrentUser = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(new ApiResponse(200, req.user, 'current user fetched successfully'))
+})
+
+// PATCH ROUTE
+export const updateAccountDetails = asyncHandler(async (req, res) => {
+    const { fullName, email } = req.body;
+
+    if (!(fullName || email))
+        throw new ApiError(400, 'all fields are required')
+
+    const user = await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set: {
+                fullName,
+                email
+            }
+        },
+        { new: true }
+    ).select("-password ")
+
+    if (!user)
+        throw new ApiError(200, 'Details are not updated')
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, 'User Details updated Successfully'))
+
+})
+
+// @PATCH ROUTE
+export const updateUserAvater = asyncHandler(async (req, res) => {
+    const avatarLocalPath = req.fiels?.avatar;
+    if (!avatarLocalPath)
+        throw new ApiError(400, "Avatar file is missing")
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    if (!avatar.url)
+        throw new ApiError(400, "Avatar is not updated ")
+
+    const user = await User.findOneAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatar.url
+            }
+        },
+        { new: true }
+    ).select("-password")
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, 'User avatar updated Successfully'))
+
+})
+
+// @PATCH ROUTE
+export const updateCoverImage = asyncHandler(async (req, res) => {
+    const coverImageLocalPath = req.fiels?.coverImage;
+    if (!coverImageLocalPath)
+        throw new ApiError(400, "coverImage file is missing")
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if (!coverImage.url)
+        throw new ApiError(400, "cover image is missing")
+
+    const user = await User.findOneAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                coverImage: coverImage.url
+            }
+        },
+        { new: true }
+    ).select("-password")
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, 'User cover image updated Successfully'))
+})
+
